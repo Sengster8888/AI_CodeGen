@@ -1,0 +1,12 @@
+{
+  "name": "chatbot_ai",
+  "version": "1.0.0",
+  "description": "AI CodeGen Chatbot",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix client\" \"npm run dev --prefix server\"",
+    "install-all": "npm install && npm install --prefix client && npm install --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
+  }
+}
