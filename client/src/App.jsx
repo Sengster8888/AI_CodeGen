@@ -1,25 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Send,
-  Sparkles,
-  Loader2,
-  Copy,
-  Check,
-  Download,
-  Play,
-  User,
-  MoreVertical,
-  Plus,
-  Trash2,
-  FileCode,
-  Layout,
-  Code2,
-  Bug,
-  Lightbulb,
-  Moon,
-  Sun,
-  Code,
-  Terminal,
+  Send, Sparkles, Loader2, Copy, Check, Download, Play, User, MoreVertical, Plus, Trash2, Code2, Sun, Moon, Code, LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -28,32 +9,29 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 import GettingStarted from './GettingStarted';
-import chatbotIcon from './assets/chatbot.png';
+import Login from './components/Login';
 import './App.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/chat';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
 function App() {
-  const [view, setView] = useState('landing'); // 'landing' or 'dashboard'
-  const [messages, setMessages] = useState(() => {
-    try {
-      const saved = localStorage.getItem('chat_history');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.error("Failed to parse chat history", e);
-      return [];
-    }
+  const [view, setView] = useState('landing'); // 'landing', 'login', 'dashboard'
+  const [token, setToken] = useState(() => localStorage.getItem('auth_token') || null);
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('auth_user');
+    return savedUser ? JSON.parse(savedUser) : null;
   });
+  
+  const [chats, setChats] = useState([]); // List of chat sessions from backend
+  const [currentChatId, setCurrentChatId] = useState(null);
+  const [messages, setMessages] = useState([]); // Messages for the active chat
   
   const [input, setInput] = useState('');
   const [promptType, setPromptType] = useState('code');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem('theme') === 'dark';
-  });
+  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
   const [streamingMessage, setStreamingMessage] = useState('');
-  const [selectedHistoryIndex, setSelectedHistoryIndex] = useState(null);
   const [programmingLanguage, setProgrammingLanguage] = useState('Python');
 
   // Effect for theme
@@ -66,15 +44,59 @@ function App() {
     }
   }, [isDarkMode]);
 
-  // Effect for saving history
+  // Fetch chats on mount if logged in
   useEffect(() => {
-    if (isLoading) return;
-    try {
-      localStorage.setItem('chat_history', JSON.stringify(messages));
-    } catch (e) {
-      console.error("Failed to save chat history", e);
+    if (token && view === 'dashboard') {
+      fetchChats();
     }
-  }, [messages, isLoading]);
+  }, [token, view]);
+
+  const fetchChats = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/chats`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setChats(data);
+      } else if (res.status === 401 || res.status === 403) {
+        handleLogout();
+      }
+    } catch (e) {
+      console.error("Failed to fetch chats", e);
+    }
+  };
+
+  const loadChat = async (chatId) => {
+    if (isLoading) return;
+    setCurrentChatId(chatId);
+    setMessages([]);
+    try {
+      const res = await fetch(`${API_BASE_URL}/chats/${chatId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(data.messages || []);
+        if (data.current_language) {
+          setProgrammingLanguage(data.current_language);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load chat", e);
+    }
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    setUser(null);
+    setChats([]);
+    setMessages([]);
+    setCurrentChatId(null);
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    setView('landing');
+  };
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -83,15 +105,12 @@ function App() {
     const userMessage = { 
       role: 'user', 
       content: input.trim(), 
-      type: promptType, 
-      lang: programmingLanguage,
-      timestamp: new Date().toISOString()
+      createdAt: new Date().toISOString()
     };
     
-    const sessionMessages = [userMessage];
+    setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     setStreamingMessage('');
-    setSelectedHistoryIndex(null);
 
     let currentType = 'code';
     if (programmingLanguage === 'HTML/CSS') {
@@ -101,23 +120,29 @@ function App() {
     }
 
     try {
-      const response = await fetch(API_URL, {
+      const response = await fetch(`${API_BASE_URL}/chats`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          messages: sessionMessages.map((m) => ({ role: m.role, content: m.content })),
+          chatId: currentChatId,
+          content: input.trim(),
           type: currentType,
           lang: programmingLanguage,
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to connect to the server');
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) handleLogout();
+        throw new Error('Failed to connect to the server');
+      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantMessage = '';
+      let isNewChat = !currentChatId;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -135,7 +160,10 @@ function App() {
 
           try {
             const data = JSON.parse(dataStr);
-            if (data.content) {
+            if (data.meta && data.meta.chatId) {
+              setCurrentChatId(data.meta.chatId);
+              isNewChat = true;
+            } else if (data.content) {
               assistantMessage += data.content;
               setStreamingMessage(assistantMessage);
             } else if (data.error) {
@@ -150,21 +178,22 @@ function App() {
       const finalAssistantMessage = { 
         role: 'assistant', 
         content: assistantMessage,
-        type: currentType,
-        timestamp: new Date().toISOString()
+        createdAt: new Date().toISOString()
       };
       
-      const newHistory = [...messages, userMessage, finalAssistantMessage];
-      setMessages(newHistory);
-      setSelectedHistoryIndex(newHistory.length - 1);
+      setMessages(prev => [...prev, finalAssistantMessage]);
       setStreamingMessage('');
       setIsLoading(false);
       setInput('');
+      
+      if (isNewChat) {
+        fetchChats(); // Refresh sidebar to show the new chat
+      }
 
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage = { role: 'assistant', content: `Error: ${error.message}` };
-      setMessages(prev => [...prev, userMessage, errorMessage]);
+      setMessages(prev => [...prev, errorMessage]);
       setIsLoading(false);
     }
   };
@@ -214,24 +243,18 @@ function App() {
     window.open(url, '_blank');
   };
 
-  const handleClearHistory = () => {
-    if (confirm('Are you sure you want to clear all history?')) {
-      setMessages([]);
-      setSelectedHistoryIndex(null);
-      localStorage.removeItem('chat_history');
-    }
-  };
-
-  const handleExplainCode = async (codeSnippet) => {
-    const explainPromptText = `Explain this ${programmingLanguage} code:\n\n${codeSnippet}`;
-    setPromptType('explain');
-    setInput(explainPromptText);
+  const startNewChat = () => {
+    setCurrentChatId(null);
+    setMessages([]);
+    setInput('');
   };
 
   const getDisplayContent = () =>{ 
     if (isLoading && streamingMessage) return streamingMessage;
-    if (selectedHistoryIndex !== null && messages[selectedHistoryIndex]) {
-      return messages[selectedHistoryIndex].content;
+    // Show the last assistant message by default if not loading
+    const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant');
+    if (lastAssistantMessage) {
+      return lastAssistantMessage.content;
     }
     return null;
   };
@@ -244,10 +267,25 @@ function App() {
   const displayContent = getDisplayContent();
   const codeBlocks = displayContent ? getCodeBlocks(displayContent) : [];
   const hasCode = codeBlocks.length > 0;
-  const historyRequests = messages.filter(m => m.role === 'user');
 
   if (view === 'landing') {
-    return <GettingStarted onGetStarted={() => setView('dashboard')} />;
+    return <GettingStarted onGetStarted={() => {
+      if (token) setView('dashboard');
+      else setView('login');
+    }} />;
+  }
+
+  if (view === 'login') {
+    return <Login 
+      onLoginSuccess={(newToken, newUser) => {
+        setToken(newToken);
+        setUser(newUser);
+        localStorage.setItem('auth_token', newToken);
+        localStorage.setItem('auth_user', JSON.stringify(newUser));
+        setView('dashboard');
+      }} 
+      onBack={() => setView('landing')}
+    />;
   }
 
   return (
@@ -264,11 +302,15 @@ function App() {
           <button className="theme-toggle-v2" onClick={() => setIsDarkMode(!isDarkMode)}>
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
-          <div className="user-profile">
-            <div className="user-avatar-placeholder">
+          <div className="user-profile" title={user?.email}>
+            <div className="user-avatar-placeholder" style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '8px' }}>
               <User size={20} />
+              <span style={{ fontSize: '12px' }}>{user?.display_name || 'User'}</span>
             </div>
           </div>
+          <button onClick={handleLogout} className="icon-btn" title="Logout" style={{ marginLeft: '8px' }}>
+            <LogOut size={18} />
+          </button>
         </div>
       </header>
 
@@ -308,32 +350,27 @@ function App() {
 
           <div className="ui-card history-container">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <label className="card-label" style={{ marginBottom: 0 }}>Your Request History</label>
-              <button onClick={handleClearHistory} className="icon-btn" title="Clear All">
-                <Trash2 size={16} />
+              <label className="card-label" style={{ marginBottom: 0 }}>Your Chat History</label>
+              <button onClick={startNewChat} className="icon-btn" title="New Chat">
+                <Plus size={16} />
               </button>
             </div>
             <div className="history-list">
-              {historyRequests.length === 0 ? (
+              {chats.length === 0 ? (
                 <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-                  No requests yet. Try generating some code!
+                  No chats yet. Try generating some code!
                 </div>
               ) : (
-                historyRequests.map((req, idx) => {
-                  const fullIndex = messages.findIndex(m => m.timestamp === req.timestamp) + 1;
-                  const isActive = selectedHistoryIndex === fullIndex;
-                  
-                  return (
-                    <div 
-                      key={idx} 
-                      className={`history-item ${isActive ? 'active' : ''}`}
-                      onClick={() => setSelectedHistoryIndex(fullIndex)}
-                    >
-                      <span className="history-text">{req.content}</span>
-                      <MoreVertical size={14} style={{ opacity: 0.5 }} />
-                    </div>
-                  );
-                }).reverse()
+                chats.map((chat) => (
+                  <div 
+                    key={chat.id} 
+                    className={`history-item ${currentChatId === chat.id ? 'active' : ''}`}
+                    onClick={() => loadChat(chat.id)}
+                  >
+                    <span className="history-text">{chat.title || 'New Chat'}</span>
+                    <MoreVertical size={14} style={{ opacity: 0.5 }} />
+                  </div>
+                ))
               )}
             </div>
           </div>

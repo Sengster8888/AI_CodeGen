@@ -12,10 +12,16 @@ module.exports = (sequelize, DataTypes) => {
     email: DataTypes.STRING,
     password_hash: DataTypes.STRING,
     display_name: DataTypes.STRING,
-    plan_type: DataTypes.STRING
+    plan_type: DataTypes.STRING,
+    otp_code: DataTypes.STRING,
+    otp_expires_at: DataTypes.DATE,
+    is_verified: { type: DataTypes.BOOLEAN, defaultValue: false },
+    refresh_token: DataTypes.TEXT,
+    deletedAt: DataTypes.DATE
   }, {
     sequelize,
     modelName: 'User',
+    paranoid: true, // Enables soft deletes
   });
   return User;
 };
