@@ -11,10 +11,12 @@ module.exports = (sequelize, DataTypes) => {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
     user_id: DataTypes.UUID,
     title: DataTypes.STRING,
-    current_language: DataTypes.STRING
+    current_language: DataTypes.STRING,
+    deletedAt: DataTypes.DATE
   }, {
     sequelize,
     modelName: 'Chat',
+    paranoid: true,
   });
   return Chat;
 };

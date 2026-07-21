@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import authRoutes from './src/auth/auth.routes.js';
+import chatRoutes from './src/chat/chat.routes.js';
 import { setupSwagger } from './swagger.js';
 
 dotenv.config();
@@ -28,8 +29,7 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/v1/auth', authRoutes);
-
-// We removed the chat routes temporarily to focus exclusively on Auth
+app.use('/api/v1/chats', chatRoutes);
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
