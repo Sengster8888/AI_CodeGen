@@ -6,6 +6,9 @@ import { sendOTPEmail } from '../../services/email.service.js';
 
 const { User } = db;
 
+// In-memory store for pending registrations to avoid inserting into DB until verified
+const pendingUsers = new Map();
+
 // We fetch these inside the functions to ensure dotenv has fully loaded in server.js
 const getEnv = () => ({
   JWT_SECRET: process.env.JWT_SECRET || 'super_secret_fallback_key',
@@ -37,11 +40,9 @@ const generateTokens = async (user) => {
 };
 
 export const register = async (email, password, displayName) => {
-  let user = await User.findOne({ where: { email } });
+  const user = await User.findOne({ where: { email } });
   if (user) {
-    if (user.is_verified) {
-      throw new Error('User with this email already exists');
-    }
+    throw new Error('User with this email already exists');
   }
 
   const salt = await bcrypt.genSalt(10);
@@ -49,23 +50,13 @@ export const register = async (email, password, displayName) => {
   const otpCode = generateOTP();
   const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); 
 
-  if (!user) {
-    user = await User.create({
-      email,
-      password_hash: passwordHash,
-      display_name: displayName || email.split('@')[0],
-      plan_type: 'free',
-      is_verified: false,
-      otp_code: otpCode,
-      otp_expires_at: otpExpiresAt
-    });
-  } else {
-    user.password_hash = passwordHash;
-    user.display_name = displayName || email.split('@')[0];
-    user.otp_code = otpCode;
-    user.otp_expires_at = otpExpiresAt;
-    await user.save();
-  }
+  pendingUsers.set(email, {
+    email,
+    passwordHash,
+    displayName: displayName || email.split('@')[0],
+    otpCode,
+    otpExpiresAt
+  });
 
   await sendOTPEmail(email, otpCode);
 
@@ -73,16 +64,42 @@ export const register = async (email, password, displayName) => {
 };
 
 export const verifyRegistration = async (email, otp) => {
-  const user = await User.findOne({ where: { email } });
-  if (!user) throw new Error('User not found');
-  if (user.is_verified) throw new Error('User is already verified');
-  if (user.otp_code !== otp) throw new Error('Invalid OTP');
-  if (new Date() > new Date(user.otp_expires_at)) throw new Error('OTP has expired. Please register again.');
+  const pendingUser = pendingUsers.get(email);
+  
+  if (!pendingUser) {
+    // Fallback for older registrations that might be in the DB
+    const dbUser = await User.findOne({ where: { email } });
+    if (!dbUser) throw new Error('No pending registration found for this email');
+    if (dbUser.is_verified) throw new Error('User is already verified');
+    if (dbUser.otp_code !== otp) throw new Error('Invalid OTP');
+    if (new Date() > new Date(dbUser.otp_expires_at)) throw new Error('OTP has expired. Please register again.');
 
-  user.is_verified = true;
-  user.otp_code = null;
-  user.otp_expires_at = null;
-  await user.save();
+    dbUser.is_verified = true;
+    dbUser.otp_code = null;
+    dbUser.otp_expires_at = null;
+    await dbUser.save();
+
+    const tokens = await generateTokens(dbUser);
+    return { ...tokens, user: { id: dbUser.id, email: dbUser.email, display_name: dbUser.display_name } };
+  }
+
+  // Handle new in-memory pending users
+  if (pendingUser.otpCode !== otp) throw new Error('Invalid OTP');
+  if (new Date() > new Date(pendingUser.otpExpiresAt)) {
+    pendingUsers.delete(email);
+    throw new Error('OTP has expired. Please register again.');
+  }
+
+  // Insert into database now!
+  const user = await User.create({
+    email: pendingUser.email,
+    password_hash: pendingUser.passwordHash,
+    display_name: pendingUser.displayName,
+    plan_type: 'free',
+    is_verified: true,
+  });
+
+  pendingUsers.delete(email);
 
   const tokens = await generateTokens(user);
   return { ...tokens, user: { id: user.id, email: user.email, display_name: user.display_name } };
@@ -101,17 +118,32 @@ export const login = async (email, password) => {
   return { ...tokens, user: { id: user.id, email: user.email, display_name: user.display_name } };
 };
 
-export const googleLogin = async (credential) => {
+export const googleLogin = async (token) => {
   try {
-    const { GOOGLE_CLIENT_ID } = getEnv();
-    const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+    let email, name;
     
-    const ticket = await client.verifyIdToken({
-      idToken: credential,
-      audience: GOOGLE_CLIENT_ID
-    });
-    const payload = ticket.getPayload();
-    const { email, name } = payload;
+    // JWTs have 3 parts separated by dots
+    if (token.split('.').length === 3) {
+      const { GOOGLE_CLIENT_ID } = getEnv();
+      const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+      
+      const ticket = await client.verifyIdToken({
+        idToken: token,
+        audience: GOOGLE_CLIENT_ID
+      });
+      const payload = ticket.getPayload();
+      email = payload.email;
+      name = payload.name;
+    } else {
+      // It's an access token from useGoogleLogin
+      const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch Google user info');
+      const payload = await response.json();
+      email = payload.email;
+      name = payload.name;
+    }
 
     let user = await User.findOne({ where: { email } });
     if (!user) {
@@ -160,6 +192,59 @@ export const logout = async (userId) => {
 };
 
 // --- New CRUD Operations ---
+
+export const forgotPassword = async (email) => {
+  const user = await User.findOne({ where: { email } });
+  if (!user) {
+    throw new Error('User with this email does not exist.');
+  }
+
+  const otp = generateOTP();
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+  user.otp_code = otp;
+  user.otp_expires_at = expiresAt;
+  await user.save();
+
+  await sendOTPEmail(email, otp);
+  return { message: 'Password reset code sent to email.' };
+};
+
+export const verifyResetOtp = async (email, otp) => {
+  const user = await User.findOne({ where: { email } });
+  if (!user) throw new Error('User not found.');
+
+  if (user.otp_code !== otp) {
+    throw new Error('Invalid OTP code.');
+  }
+  
+  if (!user.otp_expires_at || new Date() > new Date(user.otp_expires_at)) {
+    throw new Error('OTP has expired. Please request a new one.');
+  }
+
+  return { message: 'OTP verified successfully.' };
+};
+
+export const resetPassword = async (email, otp, newPassword) => {
+  const user = await User.findOne({ where: { email } });
+  if (!user) throw new Error('User not found.');
+
+  if (user.otp_code !== otp) {
+    throw new Error('Invalid OTP code.');
+  }
+  
+  if (!user.otp_expires_at || new Date() > new Date(user.otp_expires_at)) {
+    throw new Error('OTP has expired. Please request a new one.');
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  user.password_hash = await bcrypt.hash(newPassword, salt);
+  user.otp_code = null;
+  user.otp_expires_at = null;
+  await user.save();
+
+  return { message: 'Password has been reset successfully.' };
+};
 
 export const getMe = async (userId) => {
   const user = await User.findByPk(userId, { attributes: { exclude: ['password_hash'] } });

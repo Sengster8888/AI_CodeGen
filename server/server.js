@@ -4,7 +4,9 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import authRoutes from './src/auth/auth.routes.js';
 import chatRoutes from './src/chat/chat.routes.js';
+import snippetRoutes from './src/snippet/snippet.routes.js';
 import { setupSwagger } from './swagger.js';
+import logger from './utils/logger.js';
 
 dotenv.config();
 
@@ -30,8 +32,9 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/chats', chatRoutes);
+app.use('/api/v1/snippets', snippetRoutes);
 
 app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
-  console.log(`Swagger Docs available at http://localhost:${port}/api-docs`);
+  logger.info(`Server running on http://localhost:${port}`);
+  logger.info(`Swagger Docs available at http://localhost:${port}/api-docs`);
 });

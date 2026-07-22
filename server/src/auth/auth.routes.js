@@ -160,6 +160,84 @@ router.post('/logout', verifyToken, authController.logout);
 
 /**
  * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     summary: Request a password reset OTP to be sent to email
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP sent successfully
+ *       400:
+ *         description: Bad request
+ */
+router.post('/forgot-password', authController.forgotPassword);
+
+/**
+ * @swagger
+ * /auth/verify-reset-otp:
+ *   post:
+ *     summary: Verify the OTP for password reset
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, otp]
+ *             properties:
+ *               email:
+ *                 type: string
+ *               otp:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP is valid
+ *       400:
+ *         description: Invalid or expired OTP
+ */
+router.post('/verify-reset-otp', authController.verifyResetOtp);
+
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: Reset password using OTP
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, otp, newPassword]
+ *             properties:
+ *               email:
+ *                 type: string
+ *               otp:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *       400:
+ *         description: Bad request or invalid OTP
+ */
+router.post('/reset-password', authController.resetPassword);
+
+/**
+ * @swagger
  * /auth/me:
  *   get:
  *     summary: Get the currently logged-in user's profile

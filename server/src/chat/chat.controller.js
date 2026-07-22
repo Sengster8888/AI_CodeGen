@@ -1,4 +1,5 @@
 import * as chatService from './chat.service.js';
+import logger from '../../utils/logger.js';
 
 export const getChats = async (req, res) => {
   try {
@@ -29,6 +30,17 @@ export const deleteChat = async (req, res) => {
   }
 };
 
+export const updateChat = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title } = req.body;
+    const chat = await chatService.updateChat(id, req.user.userId, title);
+    res.json(chat);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
 export const sendMessage = async (req, res) => {
   try {
     const { chatId, content, lang } = req.body;
@@ -45,7 +57,7 @@ export const sendMessage = async (req, res) => {
       res
     );
   } catch (error) {
-    console.error('Chat generation error:', error);
+    logger.error(`Chat generation error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ error: 'Failed to generate response', details: error.message });
   }
 };

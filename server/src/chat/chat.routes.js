@@ -60,6 +60,35 @@ router.delete('/:id', verifyToken, chatController.deleteChat);
 
 /**
  * @swagger
+ * /chats/{id}:
+ *   patch:
+ *     summary: Update a specific chat
+ *     tags: [Chats]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Chat updated successfully
+ */
+router.patch('/:id', verifyToken, chatController.updateChat);
+
+/**
+ * @swagger
  * /chats:
  *   post:
  *     summary: Send a message to the AI and receive a streamed response

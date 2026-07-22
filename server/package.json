@@ -12,6 +12,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@google/genai": "^2.13.0",
     "axios": "^1.13.6",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
@@ -23,14 +24,14 @@
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.577.0",
     "nodemailer": "^9.0.3",
-    "openai": "^6.32.0",
     "pg": "^8.22.0",
     "pg-hstore": "^2.3.4",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "sequelize": "^6.37.8",
     "swagger-jsdoc": "^6.3.0",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14",

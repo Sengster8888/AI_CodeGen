@@ -1,4 +1,6 @@
 import * as authService from './auth.service.js';
+import logger from '../../utils/logger.js';
+import { blacklistToken } from '../../middleware/auth.middleware.js';
 
 const setTokenCookies = (res, accessToken, refreshToken) => {
   res.cookie('access_token', accessToken, {
@@ -25,7 +27,7 @@ export const register = async (req, res) => {
     const result = await authService.register(email, password, displayName);
     res.status(200).json(result);
   } catch (error) {
-    console.error('Registration error:', error);
+    logger.error(`Registration error: ${error.message}`, { stack: error.stack });
     res.status(400).json({ error: error.message || 'Registration failed' });
   }
 };
@@ -40,7 +42,7 @@ export const verifyRegistration = async (req, res) => {
     setTokenCookies(res, result.accessToken, result.refreshToken);
     res.status(200).json({ message: 'Verified and logged in', user: result.user, accessToken: result.accessToken });
   } catch (error) {
-    console.error('Verification error:', error);
+    logger.error(`Verification error: ${error.message}`, { stack: error.stack });
     res.status(400).json({ error: error.message || 'Verification failed' });
   }
 };
@@ -55,7 +57,7 @@ export const login = async (req, res) => {
     setTokenCookies(res, result.accessToken, result.refreshToken);
     res.json({ message: 'Logged in successfully', user: result.user, accessToken: result.accessToken });
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error(`Login error: ${error.message}`, { stack: error.stack });
     res.status(401).json({ error: error.message || 'Login failed' });
   }
 };
@@ -70,7 +72,7 @@ export const googleLogin = async (req, res) => {
     setTokenCookies(res, result.accessToken, result.refreshToken);
     res.json({ message: 'Logged in successfully', user: result.user, accessToken: result.accessToken });
   } catch (error) {
-    console.error('Google login error:', error);
+    logger.error(`Google login error: ${error.message}`, { stack: error.stack });
     res.status(401).json({ error: error.message || 'Google login failed' });
   }
 };
@@ -89,14 +91,71 @@ export const refreshToken = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
-    const token = req.cookies?.refresh_token;
-    if (token) {
+    const refreshToken = req.cookies?.refresh_token;
+    if (refreshToken) {
       await authService.logout(req.user.userId);
     }
+    
+    let accessToken = req.cookies?.access_token;
+    if (!accessToken) {
+      const authHeader = req.headers['authorization'];
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        accessToken = authHeader.split(' ')[1];
+      }
+    }
+    if (accessToken) {
+      blacklistToken(accessToken);
+    }
+
     res.clearCookie('access_token');
     res.clearCookie('refresh_token');
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    const result = await authService.forgotPassword(email);
+    res.json(result);
+  } catch (error) {
+    logger.error(`Forgot password error: ${error.message}`, { stack: error.stack });
+    res.status(400).json({ error: error.message });
+  }
+};
+
+export const verifyResetOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email and OTP are required' });
+    }
+    const result = await authService.verifyResetOtp(email, otp);
+    res.json(result);
+  } catch (error) {
+    logger.error(`Verify reset OTP error: ${error.message}`, { stack: error.stack });
+    res.status(400).json({ error: error.message });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: 'Email, OTP, and new password are required' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+    }
+    const result = await authService.resetPassword(email, otp, newPassword);
+    res.json(result);
+  } catch (error) {
+    logger.error(`Reset password error: ${error.message}`, { stack: error.stack });
     res.status(400).json({ error: error.message });
   }
 };

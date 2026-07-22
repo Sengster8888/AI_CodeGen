@@ -1,20 +1,14 @@
-import OpenAI from 'openai';
+import { GoogleGenAI } from '@google/genai';
 import db from '../../models/index.cjs';
 
 const { Chat, Message } = db;
 
-// High-quality open-source coding model
-const AI_MODEL = 'meta-llama/Meta-Llama-3-8B-Instruct';
-
 const getAIClient = () => {
-  const hfToken = process.env.HF_TOKEN;
-  if (!hfToken) {
-    throw new Error('HF_TOKEN is not configured in the environment');
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+    throw new Error('GEMINI_API_KEY is not configured in the environment');
   }
-  return new OpenAI({
-    baseURL: 'https://api-inference.huggingface.co/v1/',
-    apiKey: hfToken,
-  });
+  return new GoogleGenAI({ apiKey });
 };
 
 export const createChat = async (userId, title, lang) => {
@@ -51,6 +45,14 @@ export const deleteChat = async (chatId, userId) => {
   return { message: 'Chat deleted' };
 };
 
+export const updateChat = async (chatId, userId, title) => {
+  const chat = await Chat.findOne({ where: { id: chatId, user_id: userId } });
+  if (!chat) throw new Error('Chat not found');
+  if (title) chat.title = title;
+  await chat.save();
+  return chat;
+};
+
 export const generateAIResponseStream = async (chatId, userId, content, lang, res) => {
   let chat;
   let isNewChat = false;
@@ -79,20 +81,25 @@ export const generateAIResponseStream = async (chatId, userId, content, lang, re
     order: [['createdAt', 'ASC']],
   });
 
-  const messages = [
-    { role: 'system', content: `You are an expert AI programming assistant. You write clean, efficient, and well-documented code in ${lang || 'any language'}.` }
-  ];
-
-  history.forEach(msg => {
-    messages.push({ role: msg.role, content: msg.content });
-  });
+  // Convert history to Gemini format
+  const geminiHistory = history.map(msg => ({
+    role: msg.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: msg.content }]
+  }));
+  const systemInstruction = `You are an expert AI programming assistant. You write clean, efficient, and well-documented code in ${lang || 'any language'}. ALWAYS wrap your code in standard markdown code blocks (e.g. \`\`\`${lang.toLowerCase()}\n...\n\`\`\`). Provide a brief explanation of the code outside the code block.`;
 
   const aiClient = getAIClient();
-  const stream = await aiClient.chat.completions.create({
-    model: AI_MODEL,
-    messages: messages,
-    stream: true,
-    max_tokens: 2048,
+  
+  // Create the stream using the new Google Gen AI SDK
+  const stream = await aiClient.models.generateContentStream({
+    model: 'gemini-flash-latest',
+    contents: [
+      ...geminiHistory,
+      { role: 'user', parts: [{ text: content }] }
+    ],
+    config: {
+      systemInstruction,
+    }
   });
 
   // Set SSE Headers
@@ -109,7 +116,7 @@ export const generateAIResponseStream = async (chatId, userId, content, lang, re
 
   try {
     for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta?.content || '';
+      const delta = chunk.text || '';
       if (delta) {
         fullResponse += delta;
         res.write(`data: ${JSON.stringify({ content: delta })}\n\n`);
