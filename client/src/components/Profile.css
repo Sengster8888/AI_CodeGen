@@ -203,3 +203,26 @@
 .profile-btn-secondary:hover {
   background-color: var(--bg-color);
 }
+
+@media (max-width: 768px) {
+  .profile-container {
+    padding: 20px 16px;
+  }
+  
+  .profile-header h2 {
+    font-size: 24px;
+  }
+  
+  .profile-section {
+    padding: 16px;
+  }
+  
+  .profile-modal {
+    padding: 24px 20px;
+  }
+  
+  .profile-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

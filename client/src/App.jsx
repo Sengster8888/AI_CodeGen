@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Send, Sparkles, Loader2, Copy, Check, Download, Play, User, MoreVertical, Plus, Trash2, Code2, Sun, Moon, Code, LogOut, Menu, ChevronUp
+  Send, Sparkles, Loader2, Copy, Check, Download, Play, User, MoreVertical, Plus, Trash2, Code2, Sun, Moon, Code, LogOut, Menu, ChevronUp, Library, Bookmark
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -11,6 +11,7 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import GettingStarted from './GettingStarted';
 import Login from './components/Login';
 import Profile from './components/Profile';
+import Snippets from './components/Snippets';
 import { fetchApi } from './utils/api';
 import logoImage from './assets/logo.png';
 import './App.css';
@@ -58,7 +59,7 @@ const ChatInput = ({ isLoading, programmingLanguage, setProgrammingLanguage, onS
         />
         <div className="controls-row-v3">
           <div className="custom-lang-selector" onClick={(e) => e.stopPropagation()}>
-            <button 
+            <button
               className="lang-selector-btn"
               onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
             >
@@ -66,10 +67,10 @@ const ChatInput = ({ isLoading, programmingLanguage, setProgrammingLanguage, onS
               <span>{programmingLanguage}</span>
               <ChevronUp size={14} className={`chevron ${isLangMenuOpen ? 'open' : ''}`} />
             </button>
-            
+
             <AnimatePresence>
               {isLangMenuOpen && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -96,8 +97,8 @@ const ChatInput = ({ isLoading, programmingLanguage, setProgrammingLanguage, onS
               )}
             </AnimatePresence>
           </div>
-          <button 
-            className="generate-btn" 
+          <button
+            className="generate-btn"
             onClick={handleSubmitClick}
             disabled={isLoading || !input.trim()}
           >
@@ -118,25 +119,26 @@ function App() {
     const savedUser = localStorage.getItem('auth_user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
-  
+
   const [chats, setChats] = useState([]); // List of chat sessions from backend
   const [currentChatId, setCurrentChatId] = useState(null);
   const [messages, setMessages] = useState([]); // Messages for the active chat
-  
+
   const [promptType, setPromptType] = useState('code');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [savingSnippetId, setSavingSnippetId] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
   const [streamingMessage, setStreamingMessage] = useState('');
   const [programmingLanguage, setProgrammingLanguage] = useState('Python');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
+
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingMessage]);
-  
+
   const [menuOpenChatId, setMenuOpenChatId] = useState(null);
   const [editingChatId, setEditingChatId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
@@ -238,7 +240,7 @@ function App() {
       'Previous 30 Days': [],
       'Older': []
     };
-    
+
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const sevenDaysAgo = today - 7 * 24 * 60 * 60 * 1000;
@@ -273,12 +275,12 @@ function App() {
   const handleSubmit = async (userInputValue) => {
     if (!userInputValue.trim() || isLoading) return;
 
-    const userMessage = { 
-      role: 'user', 
-      content: userInputValue.trim(), 
+    const userMessage = {
+      role: 'user',
+      content: userInputValue.trim(),
       createdAt: new Date().toISOString()
     };
-    
+
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     setStreamingMessage('');
@@ -316,7 +318,7 @@ function App() {
 
         const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split('\n');
-        
+
         for (const line of lines) {
           const trimmedLine = line.trim();
           if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
@@ -341,16 +343,16 @@ function App() {
         }
       }
 
-      const finalAssistantMessage = { 
-        role: 'assistant', 
+      const finalAssistantMessage = {
+        role: 'assistant',
         content: assistantMessage,
         createdAt: new Date().toISOString()
       };
-      
+
       setMessages(prev => [...prev, finalAssistantMessage]);
       setStreamingMessage('');
       setIsLoading(false);
-      
+
       if (isNewChat) {
         fetchChats(); // Refresh sidebar to show the new chat
       }
@@ -414,7 +416,26 @@ function App() {
     return content.replace(/```(\w+)?\s?\n?([\s\S]*?)```/g, "").trim();
   };
 
-  const renderAIResponse = (content, index) => {
+  const handleSaveSnippet = async (codeContent, language, messageId, key) => {
+    try {
+      setSavingSnippetId(`save-${key}`);
+      const title = `Saved Snippet - ${language}`;
+      const res = await fetchApi('/snippets', {
+        method: 'POST',
+        body: JSON.stringify({ codeContent, language, messageId, title })
+      });
+      if (res.ok) {
+        setCopiedId(`saved-${key}`);
+        setTimeout(() => setCopiedId(null), 2000);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingSnippetId(null);
+    }
+  };
+
+  const renderAIResponse = (content, index, msgId) => {
     if (!content) return null;
     const codeBlocks = getCodeBlocks(content);
     const hasCode = codeBlocks.length > 0;
@@ -432,21 +453,29 @@ function App() {
               <div className="code-header-v2">
                 <span className="code-lang">{codeBlocks[0].lang || programmingLanguage}</span>
                 <div className="code-actions-top">
-                  <button 
-                    className="action-btn-v2" 
+                  <button
+                    className="action-btn-v2"
                     onClick={() => handleCopy(codeBlocks[0].code, `copy-${key}`)}
                   >
                     {copiedId === `copy-${key}` ? <Check size={14} /> : <Copy size={14} />}
                     <span>{copiedId === `copy-${key}` ? 'Copied' : 'Copy'}</span>
                   </button>
-                  <button 
+                  <button
+                    className="action-btn-v2"
+                    onClick={() => handleSaveSnippet(codeBlocks[0].code, codeBlocks[0].lang || programmingLanguage, msgId, key)}
+                    disabled={savingSnippetId === `save-${key}`}
+                  >
+                    {copiedId === `saved-${key}` ? <Check size={14} /> : <Bookmark size={14} />}
+                    <span>{copiedId === `saved-${key}` ? 'Saved Snippet' : 'Save Snippet'}</span>
+                  </button>
+                  <button
                     className="action-btn-v2"
                     onClick={() => handleDownload(codeBlocks[0].code, codeBlocks[0].lang)}
                   >
                     <Download size={14} />
                     <span>Download</span>
                   </button>
-                  <button 
+                  <button
                     className="action-btn-v2 primary"
                     onClick={() => handleRun(codeBlocks[0].code, codeBlocks[0].lang)}
                   >
@@ -468,7 +497,7 @@ function App() {
             </div>
           </div>
         )}
-        
+
         {explanation && (
           <div className="ui-card explanation-card">
             <label className="card-label">Code Explanation</label>
@@ -484,7 +513,7 @@ function App() {
   };
 
   if (view === 'landing') {
-    return <GettingStarted 
+    return <GettingStarted
       user={user}
       onDashboard={() => setView('dashboard')}
       onGetStarted={() => {
@@ -500,12 +529,12 @@ function App() {
           setLoginMode('login');
           setView('login');
         }
-      }} 
+      }}
     />;
   }
 
   if (view === 'login') {
-    return <Login 
+    return <Login
       initialMode={loginMode}
       onLoginSuccess={(newToken, newUser) => {
         setToken(newToken);
@@ -513,7 +542,7 @@ function App() {
         localStorage.setItem('auth_token', newToken);
         localStorage.setItem('auth_user', JSON.stringify(newUser));
         setView('dashboard');
-      }} 
+      }}
       onBack={() => setView('landing')}
     />;
   }
@@ -522,26 +551,24 @@ function App() {
     <div className="app-wrapper">
       <header className="top-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {view === 'dashboard' && (
-            <button className="hamburger-btn" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-              <Menu size={20} />
-            </button>
-          )}
+          <button className="hamburger-btn" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+            <Menu size={20} />
+          </button>
           <img src={logoImage} alt="AI CodeGen" style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }} />
           <h1 className="logo-text">AI CodeGen</h1>
         </div>
-        
+
         <div className="top-right-actions">
-          <button className="theme-toggle-v2" onClick={() => setIsDarkMode(!isDarkMode)}>
+          <button className="theme-toggle-v2" onClick={() => setIsDarkMode(!isDarkMode)} title="Toggle Dark Mode">
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
-          <div className="user-profile" title={user?.email}>
+          <div className="user-profile" title="Account Settings" onClick={() => setView('profile')} style={{ cursor: 'pointer' }}>
             <div className="user-avatar-placeholder" style={{ display: 'flex', alignItems: 'center' }}>
               <div style={{ 
                 width: '36px', height: '36px', borderRadius: '50%', 
                 background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)', 
                 color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                fontWeight: 'bold', fontSize: '18px', cursor: 'default'
+                fontWeight: 'bold', fontSize: '18px', cursor: 'pointer'
               }}>
                 {(user?.display_name || user?.email || 'U').charAt(0).toUpperCase()}
               </div>
@@ -552,16 +579,22 @@ function App() {
 
       <main className="dashboard-main">
         {isSidebarOpen && <div className="sidebar-overlay visible" onClick={() => setIsSidebarOpen(false)}></div>}
-        
+
         <aside className={`panel-left ${isSidebarOpen ? 'open' : ''}`}>
           <div className="ui-card history-container" style={{ height: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <label className="card-label" style={{ marginBottom: 0 }}>Your Chat History</label>
             </div>
-            <button onClick={() => { startNewChat(); setIsSidebarOpen(false); }} className="new-chat-btn" title="New Chat">
-              <Plus size={16} />
-              <span>New Chat</span>
-            </button>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <button onClick={() => { startNewChat(); setView('dashboard'); setIsSidebarOpen(false); }} className="new-chat-btn" style={{ flex: 1, margin: 0 }} title="New Chat">
+                <Plus size={16} />
+                <span>New Chat</span>
+              </button>
+              <button onClick={() => { setView('snippets'); setIsSidebarOpen(false); }} className="new-chat-btn" style={{ flex: 1, margin: 0, backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', border: '1px solid var(--border-light)' }} title="My Snippets">
+                <Library size={16} />
+                <span>Library</span>
+              </button>
+            </div>
             <div className="history-list">
               {chats.length === 0 ? (
                 <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
@@ -574,12 +607,13 @@ function App() {
                     <div key={groupName} className="history-group">
                       <div className="history-group-label">{groupName}</div>
                       {groupChats.map((chat) => (
-                        <div 
-                          key={chat.id} 
+                        <div
+                          key={chat.id}
                           className={`history-item ${currentChatId === chat.id ? 'active' : ''}`}
                           onClick={() => {
                             if (editingChatId !== chat.id) {
                               loadChat(chat.id);
+                              setView('dashboard');
                               setIsSidebarOpen(false);
                             }
                           }}
@@ -601,11 +635,11 @@ function App() {
                           ) : (
                             <span className="history-text" title={chat.title}>{chat.title || 'New Chat'}</span>
                           )}
-                          
+
                           {editingChatId !== chat.id && (
                             <div className="chat-menu-container" onClick={(e) => e.stopPropagation()}>
-                              <button 
-                                className="icon-btn-menu" 
+                              <button
+                                className="icon-btn-menu"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setMenuOpenChatId(menuOpenChatId === chat.id ? null : chat.id);
@@ -613,10 +647,10 @@ function App() {
                               >
                                 <MoreVertical size={14} />
                               </button>
-                              
+
                               <AnimatePresence>
                                 {menuOpenChatId === chat.id && (
-                                  <motion.div 
+                                  <motion.div
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
@@ -645,7 +679,7 @@ function App() {
                 })
               )}
             </div>
-            
+
             <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--border-light)', display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button onClick={() => { setView('profile'); setIsSidebarOpen(false); }} className={`history-item ${view === 'profile' ? 'active' : ''}`} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', margin: 0, border: 'none' }}>
                 <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '12px', flexShrink: 0 }}>
@@ -665,6 +699,8 @@ function App() {
         <section className="panel-right">
           {view === 'profile' ? (
             <Profile user={user} setUser={setUser} onLogout={handleLogout} onBack={() => setView('dashboard')} />
+          ) : view === 'snippets' ? (
+            <Snippets user={user} onBack={() => setView('dashboard')} />
           ) : (
             <>
               <div className="chat-feed-wrapper">
@@ -690,30 +726,30 @@ function App() {
                         </div>
                       );
                     } else {
-                      return renderAIResponse(msg.content, index);
+                      return renderAIResponse(msg.content, index, msg.id);
                     }
                   })}
 
                   {isLoading && streamingMessage && renderAIResponse(streamingMessage)}
                   {isLoading && !streamingMessage && (
-                     <div className="ui-card ai-response-container">
-                       <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                         <div className="shimmer-line" style={{ width: '80%' }} />
-                         <div className="shimmer-line" style={{ width: '60%' }} />
-                         <div className="shimmer-line" style={{ width: '70%' }} />
-                       </div>
-                     </div>
+                    <div className="ui-card ai-response-container">
+                      <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div className="shimmer-line" style={{ width: '80%' }} />
+                        <div className="shimmer-line" style={{ width: '60%' }} />
+                        <div className="shimmer-line" style={{ width: '70%' }} />
+                      </div>
+                    </div>
                   )}
-                  
+
                   <div ref={messagesEndRef} style={{ height: 1 }} />
                 </div>
               </div>
 
-              <ChatInput 
-                isLoading={isLoading} 
-                programmingLanguage={programmingLanguage} 
-                setProgrammingLanguage={setProgrammingLanguage} 
-                onSubmit={handleSubmit} 
+              <ChatInput
+                isLoading={isLoading}
+                programmingLanguage={programmingLanguage}
+                setProgrammingLanguage={setProgrammingLanguage}
+                onSubmit={handleSubmit}
               />
             </>
           )}
