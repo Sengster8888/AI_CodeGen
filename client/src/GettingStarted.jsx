@@ -10,8 +10,9 @@ import {
   Library
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import logoImage from './assets/logo.png';
 
-const GettingStarted = ({ onGetStarted }) => {
+const GettingStarted = ({ user, onDashboard, onGetStarted, onLogin }) => {
   const features = [
     {
       icon: <Code className="text-blue-500" />,
@@ -38,15 +39,33 @@ const GettingStarted = ({ onGetStarted }) => {
 
       <nav className="nav-simple">
         <div className="logo-section">
-          <div className="logo-square">
-            <Code size={20} />
-          </div>
+          <img src={logoImage} alt="AI CodeGen" style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }} />
           <span className="logo-text">AI CodeGen</span>
         </div>
         <div className="nav-links">
           <span>Docs</span>
           <span>Community</span>
-          <button className="btn-secondary">Login</button>
+          {user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <button className="btn-secondary" onClick={onDashboard} style={{ padding: '8px 16px', background: 'transparent', color: 'var(--text-main)', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Dashboard</button>
+              <div 
+                title={user.email}
+                style={{ 
+                  width: '36px', height: '36px', borderRadius: '50%', 
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)', 
+                  color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                  fontWeight: 'bold', fontSize: '18px', cursor: 'default' 
+                }}
+              >
+                {(user.display_name || user.email || 'U').charAt(0).toUpperCase()}
+              </div>
+            </div>
+          ) : (
+            <>
+              <button className="btn-secondary" onClick={onLogin} style={{ padding: '8px 16px', background: 'transparent', color: 'var(--text-main)', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Login</button>
+              <button className="btn-primary" onClick={onGetStarted} style={{ padding: '8px 16px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Register</button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -71,9 +90,6 @@ const GettingStarted = ({ onGetStarted }) => {
             <button className="btn-primary-lg" onClick={onGetStarted}>
               Get Started for Free
               <ArrowRight size={18} />
-            </button>
-            <button className="btn-outline-lg">
-              View Demo
             </button>
           </div>
         </motion.div>
