@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import authRoutes from './src/auth/auth.routes.js';
 import chatRoutes from './src/chat/chat.routes.js';
@@ -8,14 +8,14 @@ import snippetRoutes from './src/snippet/snippet.routes.js';
 import { setupSwagger } from './swagger.js';
 import logger from './utils/logger.js';
 
-dotenv.config();
+
 
 const app = express();
 const port = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: ['https://chatbot-ai-frontend-5oa3.onrender.com', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://localhost:3001'],
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://localhost:3001'],
   credentials: true // Important for cookies
 }));
 app.use(express.json());

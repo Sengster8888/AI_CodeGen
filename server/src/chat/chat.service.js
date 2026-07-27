@@ -92,7 +92,7 @@ export const generateAIResponseStream = async (chatId, userId, content, lang, re
   
   // Create the stream using the new Google Gen AI SDK
   const stream = await aiClient.models.generateContentStream({
-    model: 'gemini-flash-latest',
+    model: 'gemini-3.5-flash',
     contents: [
       ...geminiHistory,
       { role: 'user', parts: [{ text: content }] }
