@@ -3,8 +3,8 @@ import db from '../../models/index.cjs';
 
 const { Chat, Message } = db;
 
-const getAIClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
+const getAIClient = (customApiKey) => {
+  const apiKey = customApiKey || process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === 'your_gemini_api_key_here') {
     throw new Error('GEMINI_API_KEY is not configured in the environment');
   }
@@ -53,7 +53,29 @@ export const updateChat = async (chatId, userId, title) => {
   return chat;
 };
 
-export const generateAIResponseStream = async (chatId, userId, content, lang, res) => {
+export const generateAIResponseStream = async (chatId, userId, content, lang, res, customApiKey) => {
+  if (!customApiKey) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const userChats = await Chat.findAll({ where: { user_id: userId }, attributes: ['id'] });
+    const chatIds = userChats.map(c => c.id);
+    
+    if (chatIds.length > 0) {
+      const messageCount = await Message.count({
+        where: {
+          chat_id: { [db.Sequelize.Op.in]: chatIds },
+          role: 'user',
+          createdAt: { [db.Sequelize.Op.gte]: today }
+        }
+      });
+      
+      if (messageCount >= 4) {
+        throw new Error('LIMIT_REACHED');
+      }
+    }
+  }
+
   let chat;
   let isNewChat = false;
 
@@ -88,7 +110,7 @@ export const generateAIResponseStream = async (chatId, userId, content, lang, re
   }));
   const systemInstruction = `You are an expert AI programming assistant. You write clean, efficient, and well-documented code in ${lang || 'any language'}. ALWAYS wrap your code in standard markdown code blocks (e.g. \`\`\`${lang.toLowerCase()}\n...\n\`\`\`). Provide a brief explanation of the code outside the code block.`;
 
-  const aiClient = getAIClient();
+  const aiClient = getAIClient(customApiKey);
   
   // Create the stream using the new Google Gen AI SDK
   const stream = await aiClient.models.generateContentStream({

@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: ai-codegen-api
+    env: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-codegen-db
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      # Note: You MUST manually add these secrets in the Render Dashboard after deployment:
+      # - JWT_SECRET
+      # - REFRESH_TOKEN_SECRET
+      # - GOOGLE_CLIENT_ID
+      # - EMAIL_USER
+      # - EMAIL_PASS
+      # - FRONTEND_URL (set to your Vercel URL, e.g., https://ai-codegen-xyz.vercel.app)
+
+databases:
+  - name: ai-codegen-db
+    databaseName: aicodegendb
+    user: dbuser

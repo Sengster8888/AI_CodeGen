@@ -2,10 +2,12 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/
 
 export const fetchApi = async (endpoint, options = {}) => {
   const token = localStorage.getItem('auth_token');
+  const customGeminiKey = localStorage.getItem('gemini_api_key');
   
   const headers = {
     'Content-Type': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(customGeminiKey ? { 'x-gemini-api-key': customGeminiKey } : {}),
     ...(options.headers || {})
   };
 

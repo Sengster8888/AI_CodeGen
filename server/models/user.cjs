@@ -5,6 +5,7 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       User.hasMany(models.Chat, { foreignKey: 'user_id', as: 'chats' });
       User.hasMany(models.SavedSnippet, { foreignKey: 'user_id', as: 'snippets' });
+      User.hasOne(models.UserPolicyAcceptance, { foreignKey: 'user_id', as: 'policy_acceptance' });
     }
   }
   User.init({

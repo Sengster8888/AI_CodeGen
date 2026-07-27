@@ -4,7 +4,7 @@ import { OAuth2Client } from 'google-auth-library';
 import db from '../../models/index.cjs';
 import { sendOTPEmail } from '../../services/email.service.js';
 
-const { User } = db;
+const { User, UserPolicyAcceptance } = db;
 
 // In-memory store for pending registrations to avoid inserting into DB until verified
 const pendingUsers = new Map();
@@ -99,6 +99,13 @@ export const verifyRegistration = async (email, otp) => {
     is_verified: true,
   });
 
+  await UserPolicyAcceptance.create({
+    user_id: user.id,
+    tos_accepted: true,
+    privacy_accepted: true,
+    accepted_at: new Date()
+  });
+
   pendingUsers.delete(email);
 
   const tokens = await generateTokens(user);
@@ -152,6 +159,13 @@ export const googleLogin = async (token) => {
         display_name: name,
         plan_type: 'free',
         is_verified: true
+      });
+
+      await UserPolicyAcceptance.create({
+        user_id: user.id,
+        tos_accepted: true,
+        privacy_accepted: true,
+        accepted_at: new Date()
       });
     }
 

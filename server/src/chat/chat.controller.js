@@ -44,6 +44,8 @@ export const updateChat = async (req, res) => {
 export const sendMessage = async (req, res) => {
   try {
     const { chatId, content, lang } = req.body;
+    const customApiKey = req.headers['x-gemini-api-key'];
+
     if (!content) {
       return res.status(400).json({ error: 'Message content is required' });
     }
@@ -54,9 +56,13 @@ export const sendMessage = async (req, res) => {
       req.user.userId, 
       content, 
       lang, 
-      res
+      res,
+      customApiKey
     );
   } catch (error) {
+    if (error.message === 'LIMIT_REACHED') {
+      return res.status(403).json({ error: 'LIMIT_REACHED', message: 'Daily limit reached.' });
+    }
     logger.error(`Chat generation error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ error: 'Failed to generate response', details: error.message });
   }

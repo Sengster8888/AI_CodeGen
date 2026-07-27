@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Send, Sparkles, Loader2, Copy, Check, Download, Play, User, MoreVertical, Plus, Trash2, Code2, Sun, Moon, Code, LogOut, Menu, ChevronUp, Library, Bookmark
+  Send, Sparkles, Loader2, Copy, Check, Download, Play, User, MoreVertical, Plus, Trash2, Code2, Sun, Moon, Code, LogOut, Menu, ChevronUp, Library, Bookmark, Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -132,6 +132,8 @@ function App() {
   const [streamingMessage, setStreamingMessage] = useState('');
   const [programmingLanguage, setProgrammingLanguage] = useState('Python');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [tempApiKey, setTempApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
 
   const messagesEndRef = useRef(null);
 
@@ -303,6 +305,11 @@ function App() {
       });
 
       if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        if (response.status === 403 && errData.error === 'LIMIT_REACHED') {
+           setShowSettingsModal(true);
+           throw new Error('Daily limit reached. Please enter your Gemini API key in Settings.');
+        }
         if (response.status === 401 || response.status === 403) handleLogout();
         throw new Error('Failed to connect to the server');
       }
@@ -559,6 +566,9 @@ function App() {
         </div>
 
         <div className="top-right-actions">
+          <button className="theme-toggle-v2" onClick={() => setShowSettingsModal(true)} title="Settings">
+            <Settings size={20} />
+          </button>
           <button className="theme-toggle-v2" onClick={() => setIsDarkMode(!isDarkMode)} title="Toggle Dark Mode">
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
@@ -755,6 +765,33 @@ function App() {
           )}
         </section>
       </main>
+
+      {showSettingsModal && (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+          <div style={{backgroundColor: 'var(--panel-bg)', padding: '24px', borderRadius: '12px', width: '400px', maxWidth: '90%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', border: '1px solid var(--border-light)'}}>
+            <h3 style={{marginTop: 0, marginBottom: '8px', color: 'var(--text-main)'}}>Settings</h3>
+            <p style={{marginBottom: '16px', fontSize: '14px', color: 'var(--text-muted)'}}>
+              Enter your own Gemini API Key to bypass the free daily limit (4 messages/day).
+            </p>
+            <input 
+              type="text" 
+              value={tempApiKey} 
+              onChange={e => setTempApiKey(e.target.value)} 
+              placeholder="AIzaSy..." 
+              style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-light)', background: 'var(--bg-color)', color: 'var(--text-main)', boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
+              <button className="action-btn-v2" onClick={() => setShowSettingsModal(false)}>Cancel</button>
+              <button className="generate-btn" onClick={() => {
+                localStorage.setItem('gemini_api_key', tempApiKey);
+                setShowSettingsModal(false);
+              }} style={{ padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                <span className="send-text">Save Key</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

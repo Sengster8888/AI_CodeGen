@@ -18,6 +18,8 @@ const Login = ({ initialMode = 'login', onLoginSuccess, onBack }) => {
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [policiesAccepted, setPoliciesAccepted] = useState(false);
+  const [showPolicyModal, setShowPolicyModal] = useState(null);
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -53,6 +55,7 @@ const Login = ({ initialMode = 'login', onLoginSuccess, onBack }) => {
     e.preventDefault();
     if (!email || !password || !confirmPassword || !displayName) return setError('All fields are required');
     if (password !== confirmPassword) return setError('Passwords do not match');
+    if (!policiesAccepted) return setError('You must accept the Terms of Service and Privacy Policy to register.');
     
     setIsLoading(true);
     setError('');
@@ -274,6 +277,9 @@ const Login = ({ initialMode = 'login', onLoginSuccess, onBack }) => {
                 <img src={googleIcon} alt="Google" className="google-icon" />
                 Continue with Google
               </button>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '8px', lineHeight: '1.4' }}>
+                By continuing with Google, you agree to our <a href="#" onClick={(e) => { e.preventDefault(); setShowPolicyModal('tos'); }}>Terms of Service</a> and <a href="#" onClick={(e) => { e.preventDefault(); setShowPolicyModal('privacy'); }}>Privacy Policy</a>.
+              </div>
               
               <button type="button" className="back-button" onClick={() => setMode('register')} disabled={isLoading}>
                 Don't have an account? Sign up
@@ -304,6 +310,19 @@ const Login = ({ initialMode = 'login', onLoginSuccess, onBack }) => {
                 <button type="button" className="toggle-password-btn" onClick={() => setShowConfirmPassword(!showConfirmPassword)} title={showConfirmPassword ? "Hide password" : "Show password"}>
                   {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '8px 0 16px 0' }}>
+                <input 
+                  type="checkbox" 
+                  id="policy-checkbox" 
+                  checked={policiesAccepted} 
+                  onChange={(e) => setPoliciesAccepted(e.target.checked)} 
+                  disabled={isLoading}
+                  style={{ marginTop: '4px' }}
+                />
+                <label htmlFor="policy-checkbox" style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                  I agree to the <a href="#" onClick={(e) => { e.preventDefault(); setShowPolicyModal('tos'); }}>Terms of Service</a> and <a href="#" onClick={(e) => { e.preventDefault(); setShowPolicyModal('privacy'); }}>Privacy Policy</a>
+                </label>
               </div>
               <button type="submit" className="login-button" disabled={isLoading}>
                 {isLoading ? <Loader2 className="spin-slow" size={18} /> : 'Create Account'}
@@ -409,6 +428,45 @@ const Login = ({ initialMode = 'login', onLoginSuccess, onBack }) => {
           )}
         </div>
       </div>
+
+      {showPolicyModal && (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+          <div style={{backgroundColor: 'var(--panel-bg)', padding: '32px', borderRadius: '16px', width: '600px', maxWidth: '90%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', border: '1px solid var(--border-light)'}}>
+            <h2 style={{marginTop: 0, marginBottom: '16px', color: 'var(--text-main)', fontSize: '24px'}}>
+              {showPolicyModal === 'tos' ? 'Terms of Service' : 'Privacy Policy'}
+            </h2>
+            <div style={{flex: 1, overflowY: 'auto', paddingRight: '12px', color: 'var(--text-muted)', fontSize: '14px', lineHeight: '1.6'}}>
+              {showPolicyModal === 'tos' ? (
+                <>
+                  <h3 style={{color: 'var(--text-main)', marginBottom: '8px'}}>1. Acceptance of Terms</h3>
+                  <p style={{marginBottom: '16px'}}>By registering for and using AI CodeGen, you accept and agree to be bound by the terms and provision of this agreement.</p>
+                  <h3 style={{color: 'var(--text-main)', marginBottom: '8px'}}>2. Description of Service</h3>
+                  <p style={{marginBottom: '16px'}}>AI CodeGen provides users with access to a rich collection of resources, including various artificial intelligence tools to assist in software development.</p>
+                  <h3 style={{color: 'var(--text-main)', marginBottom: '8px'}}>3. User Conduct</h3>
+                  <p style={{marginBottom: '16px'}}>You agree to use the service only for lawful purposes. You are prohibited from violating or attempting to violate the security of the service.</p>
+                </>
+              ) : (
+                <>
+                  <h3 style={{color: 'var(--text-main)', marginBottom: '8px'}}>1. Information Collection</h3>
+                  <p style={{marginBottom: '16px'}}>We collect information you provide directly to us, such as when you create or modify your account, or contact customer support.</p>
+                  <h3 style={{color: 'var(--text-main)', marginBottom: '8px'}}>2. Use of Information</h3>
+                  <p style={{marginBottom: '16px'}}>We use the information we collect to provide, maintain, and improve our services, as well as to develop new ones.</p>
+                  <h3 style={{color: 'var(--text-main)', marginBottom: '8px'}}>3. Sharing of Information</h3>
+                  <p style={{marginBottom: '16px'}}>We may share your information as described in this policy, such as with vendors, consultants, and other service providers who need access to such information to carry out work on our behalf.</p>
+                </>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-light)' }}>
+              <button 
+                onClick={() => setShowPolicyModal(null)} 
+                style={{ padding: '10px 24px', backgroundColor: 'var(--accent)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
