@@ -15,7 +15,10 @@ const port = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://localhost:3001'],
+  origin: function(origin, callback) {
+    // Allow all origins dynamically
+    callback(null, origin || true);
+  },
   credentials: true // Important for cookies
 }));
 app.use(express.json());
