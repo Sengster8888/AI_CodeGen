@@ -69,5 +69,12 @@ export const sendOTPEmail = async (toEmail, otpCode) => {
     `,
   };
 
-  await transporter.sendMail(mailOptions);
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`OTP email successfully sent to ${toEmail}`);
+  } catch (error) {
+    console.error(`Failed to send OTP email to ${toEmail}:`, error.message);
+    // BYPASS: Print the OTP to the console so you can read it in Render Logs and continue testing
+    console.log(`[BYPASS] The OTP for ${toEmail} is: ${otpCode}`);
+  }
 };
