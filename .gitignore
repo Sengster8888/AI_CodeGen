@@ -45,3 +45,6 @@ server/.env
 *.njsproj
 *.sln
 *.sw?
+
+aws_ec2_deployment_guide.md
+ai-codegen-key3.pem

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+    <rect width="192" height="192" rx="42.24" fill="#0f172a"/>
+    <defs>
+      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#a855f7"/>
+        <stop offset="50%" stop-color="#6366f1"/>
+        <stop offset="100%" stop-color="#3b82f6"/>
+      </linearGradient>
+      <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#8b5cf6" flood-opacity="0.4"/>
+      </filter>
+    </defs>
+    <g transform="translate(0, 0) scale(0.375)">
+      <!-- Outer Hex/Shield outline -->
+      <path d="M256 32 L448 142 V370 L256 480 L64 370 V142 Z" fill="url(#grad)" filter="url(#shadow)"/>
+      <!-- Inner Code / Lightning Symbol -->
+      <path d="M275 90 L160 270 H250 L235 422 L350 242 H260 Z" fill="#ffffff"/>
+    </g>
+  </svg>

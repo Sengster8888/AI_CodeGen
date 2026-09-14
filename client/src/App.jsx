@@ -12,6 +12,8 @@ import GettingStarted from './GettingStarted';
 import Login from './components/Login';
 import Profile from './components/Profile';
 import Snippets from './components/Snippets';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
+import PWAUpdateToast from './components/PWAUpdateToast';
 import { fetchApi } from './utils/api';
 import logoImage from './assets/logo.png';
 import './App.css';
@@ -566,6 +568,20 @@ function App() {
         </div>
 
         <div className="top-right-actions">
+          <button 
+            className="theme-toggle-v2" 
+            onClick={() => {
+              localStorage.removeItem('pwa_prompt_dismissed');
+              localStorage.removeItem('pwa_ios_prompt_dismissed');
+              window.dispatchEvent(new Event('beforeinstallprompt'));
+              window.location.reload();
+            }} 
+            title="Install App / PWA Info"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '13px', fontWeight: 500, borderRadius: '8px' }}
+          >
+            <Download size={16} />
+            <span style={{ display: 'none', '@media (min-width: 640px)': { display: 'inline' } }}>App</span>
+          </button>
           <button className="theme-toggle-v2" onClick={() => setShowSettingsModal(true)} title="Settings">
             <Settings size={20} />
           </button>
@@ -792,6 +808,10 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* PWA Installation Banner & Update Toast */}
+      <PWAInstallPrompt />
+      <PWAUpdateToast />
     </div>
   );
 }
