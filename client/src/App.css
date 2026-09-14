@@ -293,8 +293,11 @@ body {
 
 /* TOP BAR */
 .top-bar {
-  height: var(--header-height);
-  padding: 0 32px;
+  min-height: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+  padding-top: max(8px, env(safe-area-inset-top, 0px));
+  padding-bottom: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -306,6 +309,7 @@ body {
   right: 0;
   z-index: 100;
   box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
 }
 
 .logo-section {
@@ -336,7 +340,17 @@ body {
 .top-right-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+}
+
+.pwa-install-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
 }
 
 .user-avatar-placeholder {
@@ -377,9 +391,14 @@ body {
 .dashboard-main {
   display: flex;
   gap: 24px;
-  padding: calc(var(--header-height) + 24px) 32px 32px;
+  padding-top: calc(var(--header-height) + env(safe-area-inset-top, 0px) + 16px);
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* ... (rest of the dashboard styles remain same) */
@@ -1037,11 +1056,22 @@ body {
   }
 
   .top-bar {
-    padding: 0 16px;
+    padding-top: max(8px, env(safe-area-inset-top, 0px));
+    padding-bottom: 8px;
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+
+  .top-right-actions {
+    gap: 8px;
+  }
+
+  .pwa-install-text {
+    display: none;
   }
 
   .logo-text {
-    font-size: 18px;
+    font-size: 17px;
   }
 
   .ui-card {

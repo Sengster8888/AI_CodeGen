@@ -569,7 +569,7 @@ function App() {
 
         <div className="top-right-actions">
           <button 
-            className="theme-toggle-v2" 
+            className="theme-toggle-v2 pwa-install-nav-btn" 
             onClick={() => {
               localStorage.removeItem('pwa_prompt_dismissed');
               localStorage.removeItem('pwa_ios_prompt_dismissed');
@@ -577,10 +577,9 @@ function App() {
               window.location.reload();
             }} 
             title="Install App / PWA Info"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '13px', fontWeight: 500, borderRadius: '8px' }}
           >
-            <Download size={16} />
-            <span style={{ display: 'none', '@media (min-width: 640px)': { display: 'inline' } }}>App</span>
+            <Download size={18} />
+            <span className="pwa-install-text">App</span>
           </button>
           <button className="theme-toggle-v2" onClick={() => setShowSettingsModal(true)} title="Settings">
             <Settings size={20} />
